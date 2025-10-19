@@ -1,4 +1,4 @@
-# /nix/store/bzxqpmy63k1p7iy16fnm13492q84p0nn-dune-3.18.2/bin/dune build
+# /nix/store/bzxqpmy63k1p7iy16fnm13492q84p0nn-dune-3.18.2/bin/dune exec ./main.exe
 # OCAMLPARAM: unset
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /home/yahya/.cache/dune/db
@@ -13,10 +13,4 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /nix/store/b5sqm2pvkp9z6zwfkn8p8i3z8w5mcra3-ocaml-5.3.0/bin/ocamlc.opt -config > /tmp/dune_8b4e81_output
-$ (cd _build/default && /nix/store/b5sqm2pvkp9z6zwfkn8p8i3z8w5mcra3-ocaml-5.3.0/bin/ocamldep.opt -modules -impl bin/main.ml) > _build/default/bin/.main.eobjs/dune__exe__Main.impl.d
-> File "bin/main.ml", line 143, characters 0-2:
-> 143 | ;;
->       ^^
-> Error: Syntax error
-[2]
+$ /nix/store/b5sqm2pvkp9z6zwfkn8p8i3z8w5mcra3-ocaml-5.3.0/bin/ocamlc.opt -config > /tmp/dune_596f58_output

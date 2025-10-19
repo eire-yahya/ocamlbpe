@@ -74,56 +74,107 @@ let pretty_print_corpus corpus =
 ;;
 
 let pretty_print_pair_list lst =
-  let pp_tuple ppf (x, y) = Format.fprintf ppf "(%c, %c)" x y in
+  let pp_str_tuple ppf (x, y) = Format.fprintf ppf "(%S, %S)" x y in
+  let pp_str_tuple_lst lst = Format.pp_print_list pp_str_tuple lst in
+  let pp_corpus_tuplified ppf (x, y) =
+    Format.fprintf ppf "(%d, %a)" x pp_str_tuple_lst y
+  in
   Format.printf
     "%a\n~\n"
-    (Format.pp_print_list ~pp_sep:(fun out () -> Format.fprintf out ",\n") pp_tuple)
+    (Format.pp_print_list
+       ~pp_sep:(fun out () -> Format.fprintf out ",\n")
+       pp_corpus_tuplified)
     lst
 ;;
 
 (* print the corpus *)
 let () = pretty_print_corpus (create_corpus (add_end_of_word_tokens example_string))
 
-let tuplify_string str =
-  let str_no_space = String.split_on_char ' ' str in
-  let str = String.concat "" str_no_space in
-  let rec tuplify_string_impl str acc n =
-    if n = String.length str - 1
+(* let tuplify_corpus_vals (corpus_vals : string list list) = *)
+(*   let cv_flattened = List.flatten corpus_vals in *)
+(*   let rec tuplify_corpus_vals_impl corpus_vals acc n = *)
+(*     if n = List.length cv_flattened - 1 *)
+(*     then List.rev acc *)
+(*     else ( *)
+(*       let token_tuple = List.nth cv_flattened n, List.nth cv_flattened (n + 1) in *)
+(*       tuplify_corpus_vals_impl corpus_vals (token_tuple :: acc) (n + 1)) *)
+(*   in *)
+(*   tuplify_corpus_vals_impl corpus_vals [] 0 *)
+(* ;; *)
+
+let tuplify_corpus_vals (corpus : (int * string list) list) =
+  let rec tuplify_corpus_vals_impl (corpus : (int * string list) list) acc n =
+    if n = List.length corpus
     then List.rev acc
     else (
-      let token_tuple = String.get str n, String.get str (n + 1) in
-      tuplify_string_impl str (token_tuple :: acc) (n + 1))
+      let current_corpus_val = List.nth corpus n in
+      let current_cv_freq = fst current_corpus_val in
+      let current_cv_val = snd current_corpus_val in
+      let rec tuplify_cv_val acc2 n2 =
+        if n2 = List.length current_cv_val - 1
+        then List.rev acc2
+        else (
+          let tuplify_current_cv_val =
+            List.nth current_cv_val n2, List.nth current_cv_val (n2 + 1)
+          in
+          tuplify_cv_val (tuplify_current_cv_val :: acc2) (n2 + 1))
+      in
+      let current_cv_tuplified = current_cv_freq, tuplify_cv_val [] 0 in
+      tuplify_corpus_vals_impl corpus (current_cv_tuplified :: acc) (n + 1))
   in
-  tuplify_string_impl str [] 0
+  tuplify_corpus_vals_impl corpus [] 0
 ;;
 
-let () = pretty_print_pair_list (tuplify_string (add_end_of_word_tokens example_string))
+(* printing tuplified corpus vals *)
+let () =
+  let corpus_vals = add_end_of_word_tokens example_string |> create_corpus in
+  pretty_print_pair_list (tuplify_corpus_vals corpus_vals)
+;;
 
-let get_token_max tokens =
-  let rec get_token_max_impl tokens n token_max token_max_count =
-    if n = List.length tokens - 1
+(* changing tuples from (char * char) to (string * string) here btw *)
+let get_token_max (tuplified_corpus : (int * (string * string) list) list) =
+  let rec get_token_max_impl
+            (tuplified_corpus : (int * (string * string) list) list)
+            n
+            token_max
+            token_max_count
+    =
+    if n = List.length tuplified_corpus - 2
     then token_max
     else (
-      let current_token = List.nth tokens n in
-      let token_count = List.length (List.filter (fun t -> t = current_token) tokens) in
+      let current_token = List.nth tuplified_corpus n in
+      let current_token_vals = snd current_token in
+      let current_token_tuple = List.nth current_token_vals n in
+      let current_token_freq = fst current_token in
+      let token_count =
+        List.length (List.filter (fun t -> t = current_token_tuple) current_token_vals)
+        * current_token_freq
+      in
+      Printf.printf "%d\n" token_count;
       if token_count > token_max_count
-      then get_token_max_impl tokens (n + 1) current_token token_count
-      else get_token_max_impl tokens (n + 1) token_max token_max_count)
+      then get_token_max_impl tuplified_corpus (n + 1) current_token_tuple token_count
+      else get_token_max_impl tuplified_corpus (n + 1) token_max token_max_count)
   in
-  get_token_max_impl tokens 0 (' ', ' ') 0
+  get_token_max_impl tuplified_corpus 0 (Char.escaped ' ', Char.escaped ' ') 0
 ;;
 
-(* printing most freq tokens *)
+(* printing most freq token tuple *)
 let () =
-  let str = get_token_max (tuplify_string (add_end_of_word_tokens example_string)) in
-  let print_tuple_func fmt (x, y) =
-    Format.fprintf fmt "(most common token -> %c, %c)" x y
+  let token_max =
+    add_end_of_word_tokens example_string
+    |> create_corpus
+    |> tuplify_corpus_vals
+    |> get_token_max
   in
-  print_tuple_func Format.std_formatter str
+  let print_tuple_func fmt (x, y) =
+    Format.fprintf fmt "(most common token -> %S, %S)\n" x y
+  in
+  print_tuple_func Format.std_formatter token_max
 ;;
 
-let find_corpus_val_token_max (corpus : (int * string list) list) token_max =
+let corpus_learner (corpus : (int * string list) list) (token_max : string * string) =
   let corpus_vals = snd (List.split corpus) in
+  let corpus_freqs = fst (List.split corpus) in
   let fst_token_max_val = fst token_max in
   let snd_token_max_val = snd token_max in
   let fst_token_max_index v = List.find_index (fun t -> t = fst_token_max_val) v in
@@ -137,22 +188,44 @@ let find_corpus_val_token_max (corpus : (int * string list) list) token_max =
       corpus_vals
   in
   let token_max_replacement = fst_token_max_val ^ snd_token_max_val in
-  let corpus_vals_replacement = List.fold_left
-    (fun acc l ->
-       List.map
-         (fun s ->
-            if s = List.nth l (Option.get (fst_token_max_index l))
-            then token_max_replacement
-            else if s = List.nth l (Option.get (snd_token_max_index l))
-            then if (Option.get (snd_token_max_index l)) = (List.length l) - 1
-                 then "?"
-                 else List.nth l (Option.get (snd_token_max_index l))
-            else s)
-         l
-       :: acc)
-    []
-    corpus_vals_w_token_max
+  let corpus_vals_replacement =
+    List.fold_left
+      (fun acc l ->
+         List.map
+           (fun s ->
+              if s = List.nth l (Option.get (fst_token_max_index l))
+              then token_max_replacement
+              else if s = List.nth l (Option.get (snd_token_max_index l))
+              then
+                if Option.get (snd_token_max_index l) = List.length l - 1
+                then "x?x"
+                else "???"
+              else s)
+           l
+         :: acc)
+      []
+      corpus_vals_w_token_max
   in
-  let corpus_replacement = List.fold_left (fun acc cv -> )
-  
+  let corpus_replacement =
+    List.fold_left
+      (fun acc cv ->
+         if List.mem cv corpus_vals_w_token_max
+         then List.nth corpus_vals_replacement 0 :: acc
+         else cv :: acc)
+      []
+      corpus_vals
+  in
+  List.combine corpus_freqs corpus_replacement
+;;
+
+let () =
+  let token_max =
+    add_end_of_word_tokens example_string
+    |> create_corpus
+    |> tuplify_corpus_vals
+    |> get_token_max
+  in
+  let corpus = add_end_of_word_tokens example_string |> create_corpus in
+  let cp_learner = corpus_learner corpus token_max in
+  pretty_print_corpus cp_learner
 ;;
