@@ -1,1 +1,1 @@
-bin/main.ml: Char Format List Option Printf Stdlib String
+bin/main.ml: Char Corpus Format List Option Printf Stdlib String Tuplified_corpus
