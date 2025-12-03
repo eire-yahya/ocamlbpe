@@ -1,8 +1,10 @@
 type t = (int * (string * string) list) list
 
-let length (tuplifed_corpus : t) = List.length tuplifed_corpus
-let rev (tuplifed_corpus : t) = List.rev tuplifed_corpus
-let nth (tuplifed_corpus : t) = List.nth tuplifed_corpus
+let empty = []
+let length (tuplified_corpus : t) = List.length tuplified_corpus
+let rev (tuplified_corpus : t) = List.rev tuplified_corpus
+let nth (tuplified_corpus : t) = List.nth tuplified_corpus
+let split (tuplified_corpus : t) = List.split tuplified_corpus
 
 let tuplify (corpus : Corpus.t) =
   let rec tuplify_impl (corpus : Corpus.t) acc n =
@@ -32,11 +34,16 @@ let pretty_print (tuplified_corpus : t) =
   let pp_str_tuple_lst tuplified_corpus =
     Format.pp_print_list pp_str_tuple tuplified_corpus
   in
-  let pp_corpus_tuplified ppf (x, y) = Format.fprintf ppf "%d:%a" x pp_str_tuple_lst y in
+  let pp_corpus_tuplified_val ppf (x, y) =
+    Format.fprintf ppf "%d:%a" x pp_str_tuple_lst y
+  in
+  let pp_corpus_tuplifed =
+    Format.pp_print_list
+      ~pp_sep:(fun out () -> Format.fprintf out "\n")
+      pp_corpus_tuplified_val
+  in
   Format.printf
-    "tuplifed_corpus:\n%a\n\n"
-    (Format.pp_print_list
-       ~pp_sep:(fun out () -> Format.fprintf out "\n")
-       pp_corpus_tuplified)
+    "tuplified_corpus:\n@[<h>@;<0 2>%a@;<0 0>@]\n\n"
+    pp_corpus_tuplifed
     tuplified_corpus
 ;;
