@@ -100,54 +100,58 @@ let () =
 ;;
 
 let () = Corpus.pretty_print (Corpus.create (add_end_of_word_tokens example_string))
-let pp_string ppf s = Format.fprintf ppf "%s" s
+(* let pp_string ppf s = Format.fprintf ppf "%s" s *)
 
-let pp_list list =
-  Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ") pp_string list
-;;
+(* let pp_list list = *)
+(*   Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ") pp_string list *)
+(* ;; *)
 
-let pp_option = function
-  | None -> Printf.printf "option: None\n"
-  | Some x -> Printf.printf "option: %d\n" x
-;;
+(* let pp_option = function *)
+(*   | None -> Printf.printf "option: None\n" *)
+(*   | Some x -> Printf.printf "option: %d\n" x *)
+(* ;; *)
 
 let corpus_learner (corpus : Corpus.t) (token_max : string * string) =
   let corpus_vals = snd (Corpus.split corpus) in
   let corpus_freqs = fst (Corpus.split corpus) in
   let fst_token_max_val = fst token_max in
   let snd_token_max_val = snd token_max in
-  let rec search_fst_token_max_index cv =
-    Format.printf "cv value: %a\n" pp_list cv;
-    let first_fst_token_max_index = List.find_index (fun t -> t = fst_token_max_val) cv in
-    if cv = [] || first_fst_token_max_index = None
-    then None
-    else (
-      let first_fst_token_max_index_val =
-        Option.get (List.find_index (fun t -> t = fst_token_max_val) cv)
+  let search_fst_token_max_index cv =
+    let rec search_fst_token_max_index_impl cv (original_cv : string list) acc =
+      let first_fst_token_max_index =
+        List.find_index (fun t -> t = fst_token_max_val) cv
       in
-      Printf.printf "first_fst_token_max_index_val: %d\n" first_fst_token_max_index_val;
-      if List.nth cv (first_fst_token_max_index_val + 1) = snd_token_max_val
-      then first_fst_token_max_index
+      if cv = [] || first_fst_token_max_index = None
+      then None
       else (
-        let new_cv = List.drop (first_fst_token_max_index_val + 1) cv in
-        search_fst_token_max_index new_cv))
+        let first_fst_token_max_index_plus_acc =
+          match first_fst_token_max_index with
+          | None -> None
+          | Some x -> Some (x + acc)
+        in
+        let first_fst_token_max_index_plus_acc_val =
+          Option.get first_fst_token_max_index_plus_acc
+        in
+        let new_cv = List.drop (first_fst_token_max_index_plus_acc_val + 1) cv in
+        let tokens_dropped = List.length cv - List.length new_cv in
+        if
+          List.nth original_cv (first_fst_token_max_index_plus_acc_val + 1)
+          = snd_token_max_val
+        then first_fst_token_max_index_plus_acc
+        else search_fst_token_max_index_impl new_cv cv tokens_dropped)
+    in
+    search_fst_token_max_index_impl cv cv 0
   in
-  pp_option (search_fst_token_max_index (List.nth corpus_vals 0));
   let search_fst_token_max_index_val cv = Option.get (search_fst_token_max_index cv) in
   let search_snd_token_max_index cv =
     List.find_index (fun t -> t = List.nth cv (search_fst_token_max_index_val cv + 1)) cv
   in
-  (* let fst_token_max_index cv = List.find_index (fun t -> t = fst_token_max_val) cv in *)
-  (* let snd_token_max_index cv = List.find_index (fun t -> t = snd_token_max_val) cv in *)
   let corpus_vals_w_token_max =
     List.filter
       (fun cv ->
          search_fst_token_max_index cv <> None && search_snd_token_max_index cv <> None)
       corpus_vals
   in
-  Printf.printf
-    "corpus_vals_w_token_max length: %d\n"
-    (List.length corpus_vals_w_token_max);
   let token_max_replacement = fst_token_max_val ^ snd_token_max_val in
   let replace_token_max_in_cv cv =
     let insert_token_max =
@@ -156,13 +160,11 @@ let corpus_learner (corpus : Corpus.t) (token_max : string * string) =
            if i = search_fst_token_max_index_val cv then token_max_replacement else t)
         cv
     in
-    (* let exception Error of string in *)
     let old_snd_token_max_val_index =
       match List.find_index (fun t -> t = snd_token_max_val) insert_token_max with
       | None -> 80
       | Some i -> i
     in
-    (* Printf.printf "old_snd_token_max_val_index: %d\n" old_snd_token_max_val_index; *)
     List.filteri (fun i _ -> i != old_snd_token_max_val_index) insert_token_max
   in
   let replace_tokens =
@@ -195,6 +197,7 @@ let generate_corpus_stage i =
     then corpus
     else (
       let current_token_max = corpus |> Tuplified_corpus.tuplify |> get_token_max in
+      Format.printf "%a" pp_token_max current_token_max;
       let corpus_learned = corpus_learner corpus current_token_max in
       generate_corpus_stage_impl corpus_learned (counter + 1))
   in
@@ -202,6 +205,6 @@ let generate_corpus_stage i =
 ;;
 
 let () =
-  let generated_corpus = generate_corpus_stage 1 in
+  let generated_corpus = generate_corpus_stage 13 in
   Corpus.pretty_print generated_corpus
 ;;
